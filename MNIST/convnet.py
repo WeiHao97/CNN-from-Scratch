@@ -145,9 +145,11 @@ def ConvNet(image, label, filt1, filt2, bias1, bias2, theta3, bias3):
 
 
 def initialize_param(f, l):
+	np.random.seed(0)    
 	return 0.01*np.random.rand(l, f, f)
 
 def initialize_theta(NUM_OUTPUT, l_in):
+	np.random.seed(0)    
 	return 0.01*np.random.rand(NUM_OUTPUT, l_in)
 
 def initialise_param_lecun_normal(FILTER_SIZE, IMG_DEPTH, scale=1.0, distribution='normal'):
@@ -167,6 +169,7 @@ def initialise_param_lecun_normal(FILTER_SIZE, IMG_DEPTH, scale=1.0, distributio
     scale = scale
     stddev = scale * np.sqrt(1./fan_in)
     shape = (IMG_DEPTH,FILTER_SIZE,FILTER_SIZE)
+    np.random.seed(0)
     return np.random.normal(loc = 0,scale = stddev,size = shape)
 
 ## Returns all the trained parameters
