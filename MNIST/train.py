@@ -91,7 +91,7 @@ for epoch in range(0,NUM_EPOCHS):
 	for batch in batches:
 		stime = time.time()
 		# LEARNING_RATE =  LEARNING_RATE/(1+epoch/10.0)
-		out = momentumGradDescent(batch, LEARNING_RATE, IMG_WIDTH, IMG_DEPTH, MU, filt1, filt2, bias1, bias2, theta3, bias3, cost, acc)
+		out = momentumGradDescent(batch, LEARNING_RATE, IMG_WIDTH, IMG_DEPTH, MU, filt1, filt2, bias1, bias2, theta3, bias3, cost, acc, path, order)
 		[filt1, filt2, bias1, bias2, theta3, bias3, cost, acc] = out
 		epoch_acc = round(np.sum(acc[epoch*NUM_IMAGES/BATCH_SIZE:])/(x+1),2)
 		

@@ -35,7 +35,7 @@ def softmax_cost(out,y):
 
 
 ## Returns gradient for all the paramaters in each iteration
-def ConvNet(image, label, filt1, filt2, bias1, bias2, theta3, bias3):
+def ConvNet(image, label, filt1, filt2, bias1, bias2, theta3, bias3, order, path):
 	#####################################################################################################################
 	#######################################  Feed forward to get all the layers  ########################################
 	#####################################################################################################################
@@ -61,14 +61,24 @@ def ConvNet(image, label, filt1, filt2, bias1, bias2, theta3, bias3):
 	for jj in range(0,l1):
 		for x in range(0,w1):
 			for y in range(0,w1):
-				conv1[jj,x,y] = np.sum(image[:,x:x+f,y:y+f]*filt1[jj])+bias1[jj]
+				if(order == 'd' and path == 'f'):
+					conv1[jj,x,y] = np.sum(np.sort(image[:,x:x+f,y:y+f]*filt1[jj])[::-1])+bias1[jj]
+				elif(order == 'a' and path == 'f'):
+					conv1[jj,x,y] = np.sum(np.sort(image[:,x:x+f,y:y+f]*filt1[jj]))+bias1[jj]
+				else:                    
+					conv1[jj,x,y] = np.sum(image[:,x:x+f,y:y+f]*filt1[jj])+bias1[jj]
 	conv1[conv1<=0] = 0 #relu activation
 
 	## Calculating second Convolution layer
 	for jj in range(0,l2):
 		for x in range(0,w2):
 			for y in range(0,w2):
-				conv2[jj,x,y] = np.sum(conv1[:,x:x+f,y:y+f]*filt2[jj])+bias2[jj]
+				if(order == 'd' and path == 'f'):
+					conv1[jj,x,y] = np.sum(np.sort(conv1[:,x:x+f,y:y+f]*filt2[jj])[::-1])+bias1[jj]                  
+				elif(order == 'a' and path == 'f'):
+					conv1[jj,x,y] = np.sum(np.sort(conv1[:,x:x+f,y:y+f]*filt2[jj]))+bias1[jj]
+				else:                    
+					conv2[jj,x,y] = np.sum(conv1[:,x:x+f,y:y+f]*filt2[jj])+bias2[jj]
 	conv2[conv2<=0] = 0 # relu activation
 
 	## Pooled layer with 2*2 size and stride 2,2
@@ -127,18 +137,49 @@ def ConvNet(image, label, filt1, filt2, bias1, bias2, theta3, bias3):
 		dbias1[xx] = 0
 
 	for jj in range(0,l2):
+		temp_dfilt2 = []
 		for x in range(0,w2):
 			for y in range(0,w2):
-				dfilt2[jj]+=dconv2[jj,x,y]*conv1[:,x:x+f,y:y+f]
+				if order == 'n':                           
+					dfilt2[jj]+=dconv2[jj,x,y]*conv1[:,x:x+f,y:y+f]
+				elif path == 'b':
+					temp_dfilt2.append(dconv2[jj,x,y]*conv1[:,x:x+f,y:y+f])
 				dconv1[:,x:x+f,y:y+f]+=dconv2[jj,x,y]*filt2[jj]
-		dbias2[jj] = np.sum(dconv2[jj])
+		if order == 'n': 
+			dbias2[jj] = np.sum(dconv2[jj])
+		elif order == 'a':
+			dbias2[jj] = np.sum(np.sort(dconv2[jj].flatten()))
+			array_dfilt2 = np.stack(temp_dfilt2, axis = 1)
+			for i in range(0,array_dfilt2.shape[0]):              
+				dfilt2[jj][i] += np.sum(np.sort(np.stack(array_dfilt2[i], axis=-1),axis=2),axis=2)
+		else:
+			dbias2[jj] = np.sum(np.sort(dconv2[jj].flatten())[::-1])
+			array_dfilt2 = np.stack(temp_dfilt2, axis = 1)
+			for i in range(0,array_dfilt2.shape[0]):              
+				dfilt2[jj][i] += np.sum(-np.sort(-np.stack(array_dfilt2[i], axis=-1),axis=2),axis=2)          
+
 	dconv1[conv1<=0]=0
 	for jj in range(0,l1):
+		temp_dfilt1 = []
 		for x in range(0,w1):
 			for y in range(0,w1):
-				dfilt1[jj]+=dconv1[jj,x,y]*image[:,x:x+f,y:y+f]
+				if order == 'n':                
+					dfilt1[jj]+=dconv1[jj,x,y]*image[:,x:x+f,y:y+f] 
+				elif path == 'b':
+					temp_dfilt1.append(dconv1[jj,x,y]*image[:,x:x+f,y:y+f])
 
-		dbias1[jj] = np.sum(dconv1[jj])
+		if order == 'n': 
+			dbias1[jj] = np.sum(dconv1[jj])
+		elif order == 'a':
+			dbias2[jj] = np.sum(np.sort(dconv1[jj].flatten()))
+			array_dfilt1 = np.stack(temp_dfilt1, axis = 1)
+			for i in range(0,array_dfilt1.shape[0]): 
+				dfilt1[jj][i] += np.sum(np.sort(np.stack(array_dfilt1[i], axis=-1),axis=2),axis=2)
+		else:
+			dbias2[jj] = np.sum(np.sort(dconv1[jj].flatten())[::-1])
+			array_dfilt1 = np.stack(temp_dfilt1, axis = 1)
+			for i in range(0,array_dfilt1.shape[0]):
+				dfilt1[jj][i] += np.sum(-np.sort(-np.stack(array_dfilt1[i], axis=-1),axis=2),axis=2)
 
 	
 	return [dfilt1, dfilt2, dbias1, dbias2, dtheta3, dbias3, cost, acc]
@@ -173,7 +214,7 @@ def initialise_param_lecun_normal(FILTER_SIZE, IMG_DEPTH, scale=1.0, distributio
     return np.random.normal(loc = 0,scale = stddev,size = shape)
 
 ## Returns all the trained parameters
-def momentumGradDescent(batch, LEARNING_RATE, w, l, MU, filt1, filt2, bias1, bias2, theta3, bias3, cost, acc):
+def momentumGradDescent(batch, LEARNING_RATE, w, l, MU, filt1, filt2, bias1, bias2, theta3, bias3, cost, acc, order, path):
 	#	Momentum Gradient Update
 	# MU=0.5	
 	X = batch[:,0:-1]
@@ -216,7 +257,7 @@ def momentumGradDescent(batch, LEARNING_RATE, w, l, MU, filt1, filt2, bias1, bia
 		label[int(y[i]),0] = 1
 		
 		## Fetching gradient for the current parameters
-		[dfilt1_, dfilt2_, dbias1_, dbias2_, dtheta3_, dbias3_, curr_cost, acc_] = ConvNet(image, label, filt1, filt2, bias1, bias2, theta3, bias3)
+		[dfilt1_, dfilt2_, dbias1_, dbias2_, dtheta3_, dbias3_, curr_cost, acc_] = ConvNet(image, label, filt1, filt2, bias1, bias2, theta3, bias3, order,path)
 		for j in range(0,len(filt2)):
 			dfilt2[j]+=dfilt2_[j]
 			dbias2[j]+=dbias2_[j]
